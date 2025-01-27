@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #ffffff;
+  --background-secondary: #e2e8f0;
+  --background-tertiary: #f8fafc;
+  --text-primary: #334155;
+  --text-secondary: #64748b;
+}
+
+.dark {
+  --background: #0a0a0a;
+  --background-secondary: #334155;
+  --background-tertiary: #1f2937;
+  --text-primary: #ffffff;
+  --text-secondary: #f7f7f7;
+}
+
+.dark .p-Checkbox-labelContent {
+  color: white !important;
+}
