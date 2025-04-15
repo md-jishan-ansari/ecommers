@@ -126,39 +126,55 @@ const AddProductForm = () => {
     const handleImageUpload = async () => {
       toast.info("Creating Product, please wait...");
       try {
-        for(const item of data.images) {
+        const formData = new FormData();
+
+        // First, validate that we have images to upload
+        if (!data.images || data.images.length === 0) {
+          throw new Error("No images to upload");
+        }
+
+        // Append each image with its color name
+        data.images.forEach((item: ImageType) => {
           if (item.image) {
+            formData.append(item.color, item.image);
+          }
+        });
 
-            const formData = new FormData();
-            formData.append('file', item.image);
+        const response = await fetch('/api/product/image', {
+          method: 'POST',
+          body: formData,
+        });
 
-            const response = await fetch('/api/product/image', {
-                method: 'POST',
-                body: formData,
+        if (!response.ok) {
+          throw new Error('Upload failed');
+        }
+
+        const uploadedData = await response.json();
+
+        console.log({uploadedData});
+
+        // Process the uploaded images
+        for (const item of data.images) {
+          if (item.image) {
+            uploadedImages.push({
+              color: item.color,
+              colorCode: item.colorCode,
+              image: uploadedData.urls[item.color]
             });
-
-            const uploadedData = await response.json()
-
-            if (response.ok) {
-              uploadedImages.push({
-                color: item.color,
-                colorCode: item.colorCode,
-                image: uploadedData.path
-              })
-              toast.success('File uploaded successfully!');
-            } else {
-                throw new Error('Upload failed');
-            }
-
           }
         }
+
+        toast.success('Images uploaded successfully!');
       } catch (error: any) {
-        console.log(error.message);
-        toast.error("Something went wrong");
+        console.error('Upload error:', error);
+        toast.error(error.message || "Something went wrong during image upload");
+        throw error; // Re-throw to prevent product creation
       }
     }
 
     await handleImageUpload();
+
+    console.log({uploadedImages});
 
     const productData = {
       ...data,

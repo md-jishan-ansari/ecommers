@@ -1,95 +1,68 @@
 import { NextResponse } from 'next/server'
-import fs from 'fs'
-import path from 'path'
-import { writeFile } from 'fs/promises'
-import sharp from 'sharp'
+import { uploadImages } from '@/src/middleware/uploadImages';
 
-const CDN_PATH = '/var/www/resources/CDN'
 
 export async function POST(request: Request) {
-    if (!fs.existsSync(CDN_PATH)){
-        fs.mkdirSync(CDN_PATH, { recursive: true })
-    }
-
     try {
-        const formData = await request.formData()
-        const file = formData.get('file') as File
+        const formData = await request.formData();
 
-        if (!file) {
-            return NextResponse.json(
-                { success: false, message: 'No file received.' },
-                { status: 400 }
-            )
-        }
-
-        const bytes = await file.arrayBuffer()
-        // Convert to Uint8Array for proper typing
-        const buffer = new Uint8Array(bytes)
-
-        const compressedImageBuffer = await sharp(buffer)
-            .resize(1920, 1080, {
-                fit: 'inside',
-                withoutEnlargement: true
-            })
-            .jpeg({ quality: 80 })
-            .toBuffer()
-
-        const filename = `${Date.now()}-${file.name}`
-        const filepath = path.join(CDN_PATH, filename)
-
-        await writeFile(filepath, new Uint8Array(compressedImageBuffer))
+        const urls = await uploadImages(formData);
 
         return NextResponse.json({
             success: true,
-            message: 'File uploaded successfully!',
-            path: `http://www.resources.com/CDN/${filename}`
-        })
+            message: 'Files uploaded successfully!',
+            urls
+        });
 
-    } catch (error) {
-        console.log({error});
+    } catch (error: any) {
+        console.error('Upload error:', error);
         return NextResponse.json(
-            { success: false, message: 'Error uploading file.' },
+            { success: false, message: error.message || 'Error uploading files.' },
             { status: 500 }
-        )
+        );
     }
 }
 
 export async function DELETE(request: Request) {
-    if (!fs.existsSync(CDN_PATH)){
-        fs.mkdirSync(CDN_PATH, { recursive: true })
-    }
-
     try {
+        const { imageUrls } = await request.json();
 
-        const {imagename} = await request.json();
-
-        if (!imagename) {
+        if (!imageUrls || !Array.isArray(imageUrls)) {
             return NextResponse.json(
-                { success: false, message: 'imagename is required' },
+                { success: false, message: 'imageUrls array is required' },
                 { status: 400 }
-            )
+            );
         }
 
-        const filepath = path.join(CDN_PATH, imagename)
+        const response = await fetch(
+            `${process.env.STATIC_CDN_URL}/api/image/delete-image`,
+            {
+                method: "DELETE",
+                headers: {
+                    "Content-Type": "application/json",
+                    'Authorization': `Bearer ${process.env.PROJECT_API_KEY}`
+                },
+                body: JSON.stringify({ imageUrls }),
+            }
+        );
 
-        if (fs.existsSync(filepath)) {
-            fs.unlinkSync(filepath)
-            return NextResponse.json({
-                success: true,
-                message: 'File deleted successfully!'
-            })
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error('Delete failed');
         }
 
-        return NextResponse.json(
-            { success: false, message: 'File not found' },
-            { status: 404 }
-        )
+        return NextResponse.json({
+            success: true,
+            message: 'Files deleted successfully!',
+            data
+        });
 
     } catch (error) {
-        console.log({error});
+        console.error('Delete error:', error);
         return NextResponse.json(
-            { success: false, message: 'Deleting file error.' },
+            { success: false, message: 'Error deleting files.' },
             { status: 500 }
-        )
+        );
     }
 }

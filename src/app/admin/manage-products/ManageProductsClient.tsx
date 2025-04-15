@@ -97,16 +97,16 @@ const ManageProductsClient:React.FC<ManageProductsClientProps> = ({products}) =>
         toast('Deleting product, please wait...');
 
         const handleImageDelete = async () => {
-            for (const image of images) {
-                try {
-                    await axios.delete(`/api/product/image`, {
-                        data: {
-                            imagename: image.image
-                        }
-                    });
-                } catch (error) {
-                    console.error('Error deleting image:', error);
-                }
+            try {
+                const imageUrls = images.map(image => image.image);
+                await axios.delete('/api/product/image', {
+                    data: {
+                        imageUrls: imageUrls
+                    }
+                });
+            } catch (error) {
+                console.error('Error deleting images:', error);
+                throw error; // Re-throw to prevent product deletion if image deletion fails
             }
         }
 
